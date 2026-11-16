@@ -1,0 +1,44 @@
+# CLOUD — control plane and workers as separate, horizontally scalable services on PostgreSQL.
+# The same shape maps directly onto Kubernetes / ECS / Cloud Run: one stateless "api" deployment,
+# one "worker" deployment you scale, one managed PostgreSQL, one shared volume (or object-store mount) for workspaces.
+#
+#   AIOS_SECRET_KEY=$(python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())") \
+#   POSTGRES_PASSWORD=change-me docker compose -f deploy/docker-compose.cloud.yml up --build --scale worker=3
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: aios
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      POSTGRES_DB: aios
+    volumes: ["pg-data:/var/lib/postgresql/data"]
+    healthcheck: { test: ["CMD-SHELL", "pg_isready -U aios"], interval: 5s, retries: 20 }
+    restart: unless-stopped
+
+  api:
+    build: { context: .., dockerfile: deploy/Dockerfile }
+    command: ["aios", "serve", "--host", "0.0.0.0", "--port", "8600", "--no-worker"]
+    ports: ["8600:8600"]   # put a TLS-terminating proxy or load balancer in front of this
+    environment: &env
+      AIOS_DEPLOYMENT_MODE: cloud
+      AIOS_WORKER_LOCATION: cloud
+      AIOS_DATABASE_URL: postgresql+asyncpg://aios:${POSTGRES_PASSWORD}@db:5432/aios
+      AIOS_SECRET_KEY: ${AIOS_SECRET_KEY:?set AIOS_SECRET_KEY (Fernet key) so every replica can read the secret store}
+      AIOS_ADMIN_EMAIL: ${AIOS_ADMIN_EMAIL:-}
+      AIOS_ADMIN_PASSWORD: ${AIOS_ADMIN_PASSWORD:-}
+    volumes: ["workspaces:/data"]
+    depends_on: { db: { condition: service_healthy } }
+    restart: unless-stopped
+
+  worker:
+    build: { context: .., dockerfile: deploy/Dockerfile }
+    command: ["aios", "worker", "--location", "cloud", "--concurrency", "4"]
+    environment: *env
+    volumes: ["workspaces:/data"]          # workers and the API must see the same workspaces
+    security_opt: ["seccomp=unconfined"]   # network-less sandbox for agent code; prefer a gVisor/Kata runtime class in production
+    depends_on: { db: { condition: service_healthy } }
+    restart: unless-stopped
+
+volumes:
+  pg-data:
+  workspaces:

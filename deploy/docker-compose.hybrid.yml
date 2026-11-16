@@ -1,0 +1,26 @@
+# HYBRID — one control plane, workers in more than one place.
+#
+# This file is the CLOUD side: control plane + database + cloud workers (it extends the cloud file).
+# The LOCAL side is a single process on hardware you control, joined to the same control plane:
+#
+#   # on the on-prem box / workstation (needs network access to the database, e.g. over a VPN or private link)
+#   export AIOS_DATABASE_URL=postgresql+asyncpg://aios:<password>@<control-plane-db-host>:5432/aios
+#   export AIOS_SECRET_KEY=<same key as the control plane>
+#   export AIOS_DATA_DIR=/srv/aios            # workspaces of locally-placed organizations live HERE, on your disk
+#   aios worker --location local --concurrency 2
+#
+# Placement is then a per-organization policy (UI: AI-OS → Deployment → Placement policy, or when creating a business):
+#   compute = local  → that organization's tasks are only claimed by local workers; its files never leave your disk
+#   models  = local  → its prompts only go to providers marked "local" (e.g. Ollama next to the local worker)
+#   compute = cloud / any, models = any → elastic cloud capacity and hosted models
+#
+#   docker compose -f deploy/docker-compose.cloud.yml -f deploy/docker-compose.hybrid.yml up --build
+services:
+  db:
+    ports: ["5432:5432"]   # reachable by the local worker; restrict with a firewall / private network, never the open internet
+  api:
+    environment:
+      AIOS_DEPLOYMENT_MODE: hybrid
+  worker:
+    environment:
+      AIOS_DEPLOYMENT_MODE: hybrid
