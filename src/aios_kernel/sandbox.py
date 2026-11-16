@@ -90,11 +90,16 @@ class SubprocessSandbox:
 
         def limits() -> None:
             os.setsid()
-            resource.setrlimit(resource.RLIMIT_CPU, (cpu, cpu))
-            resource.setrlimit(resource.RLIMIT_FSIZE, (256 * 1024 * 1024,) * 2)
-            resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
+            wanted = [(resource.RLIMIT_CPU, cpu), (resource.RLIMIT_FSIZE, 256 * 1024 * 1024), (resource.RLIMIT_CORE, 0)]
             if language != "node":  # V8 reserves far more address space than it uses
-                resource.setrlimit(resource.RLIMIT_AS, (mem, mem))
+                wanted.append((resource.RLIMIT_AS, mem))
+            for limit, value in wanted:
+                try:
+                    resource.setrlimit(limit, (value, value))
+                except (ValueError, OSError):
+                    # Not every platform accepts every limit (macOS rejects RLIMIT_AS). The wall-clock
+                    # timeout still applies; a limit the OS refuses must not stop the code from running.
+                    pass
 
         env = {"PATH": os.environ.get("PATH", "/usr/bin:/bin"), "HOME": str(workdir), "LANG": "C.UTF-8",
                "TMPDIR": str(scratch), "PYTHONDONTWRITEBYTECODE": "1"}

@@ -25,10 +25,13 @@ More views: [a business](docs/screenshots/business.png) · [org chart](docs/scre
 
 ## Quick start (local, one process)
 
-Requirements: Python 3.11+, Node 20+ (to build the UI once), git.
+Requirements: Python 3.11+, Node 20+ (to build the UI once), git. On macOS: `brew install python@3.12 node`, then use
+`python3.12` where the commands below say `python`. Linux gives agent code the strongest built-in isolation (no network
+by default); on macOS the sandbox still confines code to the workspace with a timeout but cannot cut network access —
+use the Docker sandbox driver there if that matters.
 
 ```bash
-python -m venv .venv && .venv/bin/pip install -e ".[dev,postgres]"
+python3 -m venv .venv && .venv/bin/pip install -e ".[dev,postgres]"
 ```
 
 ```bash
