@@ -45,8 +45,10 @@ Open http://127.0.0.1:8600 and create the owner account. State lives in `./data`
 
 AI-OS needs at least one model. In the UI: **AI-OS → Infrastructure**.
 
-- **Claude**: *Security → Secrets*, store `ANTHROPIC_API_KEY`. The `anthropic` provider and three models
-  (`claude-opus-5-5` for deep work, `claude-sonnet-5-5`, `claude-haiku-5-5`) are pre-registered.
+- **Claude**: *Security → Secrets*: name `ANTHROPIC_API_KEY`, paste the key as the value, scope "AI-OS (global)",
+  *Store* ([where exactly](docs/screenshots/where-to-put-api-key.png)). The `anthropic` provider and three models
+  (`claude-opus-5-5` for deep work, `claude-sonnet-5-5`, `claude-haiku-5-5`) are pre-registered; the *Models* tab then
+  shows the credential as "set". Keys belong only in this encrypted store — never in the repository or `.env`.
 - **A local model**: run any OpenAI-compatible server (Ollama, vLLM, llama.cpp, LM Studio). *Models →* enable the
   `local` provider (or add one with your base URL) *→ Discover*. Mark it `local` so "local models only" organizations can use it.
 - **Anything else with an OpenAI-compatible API**: add a provider with its base URL and the name of the secret holding its key.
